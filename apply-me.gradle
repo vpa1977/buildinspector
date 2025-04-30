@@ -1,0 +1,11 @@
+initscript {
+    repositories {
+        mavenLocal()
+    }
+    dependencies {
+        classpath 'io.github.vpa1977.buildinspector:io.github.vpa1977.buildinspector.gradle.plugin:0.0.1'
+        classpath 'io.github.vpa1977:buildinspector-plugin:0.0.1'
+    }
+}
+
+apply plugin: com.canonical.buildinspector.BuildInspectorPlugin
