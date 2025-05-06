@@ -4,6 +4,9 @@ import org.apache.tools.ant.types.ModuleVersion;
 import org.gradle.BuildListener;
 import org.gradle.BuildResult;
 import org.gradle.api.Plugin;
+import org.gradle.api.Project;
+import org.gradle.api.ProjectEvaluationListener;
+import org.gradle.api.ProjectState;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
@@ -93,7 +96,26 @@ public class BuildInspectorPlugin implements Plugin<Gradle> {
                 System.out.println("--- Build Complete ---");
             }
         });
+        target.addProjectEvaluationListener(new ProjectEvaluationListener() {
+            @Override
+            public void beforeEvaluate(Project project) {
+                try {
+                    dumpProject("beforeEvaluateProject", project);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
 
+            @Override
+            public void afterEvaluate(Project project, ProjectState state) {
+                try {
+                    dumpProject("afterEvaluateProject", project);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+                System.out.println("--- project state "+ state);
+            }
+        });
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -152,5 +174,34 @@ public class BuildInspectorPlugin implements Plugin<Gradle> {
         }
 
         System.out.println("---");
+    }
+
+    private void dumpProject(String label, Project project) throws IOException {
+        System.out.println("---  "+label + " " + project.getPath());
+        project.getBuildscript().getRepositories().all(x -> {
+            System.out.println("buildscript repository " + x.getName());
+        });
+        project.getRepositories().all(x -> {
+            System.out.println("repository " + x.getName());
+        });
+
+        final PomDependencyReader buildScriptDependencyReader = new PomDependencyReader(project.getBuildscript().getDependencies(),
+                project.getBuildscript().getConfigurations());
+        System.out.println("---  investigate buildscript configurations");
+        for (Configuration config : project.getBuildscript().getConfigurations()) {
+            System.out.println("---  buildscript configuration: "+ config.getName());
+            copyConfiguration(buildScriptDependencyReader, config, project.getBuildscript().getDependencies());
+        }
+
+        final PomDependencyReader buildDependencyReader = new PomDependencyReader(project.getDependencies(),
+                project.getConfigurations());
+        System.out.println("---  investigate configurations");
+        for (Configuration config : project.getConfigurations()) {
+            System.out.println("---  configuration: "+ config.getName());
+            copyConfiguration(buildDependencyReader, config, project.getBuildscript().getDependencies());
+        }
+
+        System.out.println("---");
+
     }
 }
